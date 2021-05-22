@@ -227,11 +227,6 @@ func (c *Cluster) logServiceChanges(role PostgresRole, old, new *v1.Service, isU
 	}
 }
 
-func (c *Cluster) logVolumeChanges(old, new acidv1.Volume) {
-	c.logger.Infof("volume specification has been changed")
-	logNiceDiff(c.logger, old, new)
-}
-
 func (c *Cluster) getTeamMembers(teamID string) ([]string, error) {
 
 	if teamID == "" {
@@ -247,13 +242,11 @@ func (c *Cluster) getTeamMembers(teamID string) ([]string, error) {
 		for team, membership := range *c.Config.PgTeamMap {
 			if team == teamID {
 				additionalMembers = membership.AdditionalMembers
-				c.logger.Debugf("found %d additional members for team %q", len(members), teamID)
+				c.logger.Debugf("found %d additional members for team %q", len(additionalMembers), teamID)
 			}
 		}
 
-		for _, member := range additionalMembers {
-			members = append(members, member)
-		}
+		members = append(members, additionalMembers...)
 	}
 
 	if !c.OpConfig.EnableTeamsAPI {
@@ -263,14 +256,12 @@ func (c *Cluster) getTeamMembers(teamID string) ([]string, error) {
 
 	token, err := c.oauthTokenGetter.getOAuthToken()
 	if err != nil {
-		c.logger.Warnf("could not get oauth token to authenticate to team service API, only returning %d members for team %q: %v", len(members), teamID, err)
-		return members, nil
+		return nil, fmt.Errorf("could not get oauth token to authenticate to team service API: %v", err)
 	}
 
 	teamInfo, err := c.teamsAPIClient.TeamInfo(teamID, token)
 	if err != nil {
-		c.logger.Warnf("could not get team info for team %q, only returning %d members: %v", teamID, len(members), err)
-		return members, nil
+		return nil, fmt.Errorf("could not get team info for team %q: %v", teamID, err)
 	}
 
 	for _, member := range teamInfo.Members {
@@ -292,12 +283,10 @@ func (c *Cluster) annotationsSet(annotations map[string]string) map[string]strin
 	pgCRDAnnotations := c.ObjectMeta.Annotations
 
 	// allow to inherit certain labels from the 'postgres' object
-	if pgCRDAnnotations != nil {
-		for k, v := range pgCRDAnnotations {
-			for _, match := range c.OpConfig.InheritedAnnotations {
-				if k == match {
-					annotations[k] = v
-				}
+	for k, v := range pgCRDAnnotations {
+		for _, match := range c.OpConfig.InheritedAnnotations {
+			if k == match {
+				annotations[k] = v
 			}
 		}
 	}

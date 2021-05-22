@@ -965,6 +965,20 @@ var OperatorConfigCRDResourceValidation = apiextv1.CustomResourceValidation{
 							},
 						},
 					},
+					"major_version_upgrade": {
+						Type: "object",
+						Properties: map[string]apiextv1.JSONSchemaProps{
+							"major_version_upgrade_mode": {
+								Type: "string",
+							},
+							"minimal_major_version": {
+								Type: "string",
+							},
+							"target_major_version": {
+								Type: "string",
+							},
+						},
+					},
 					"kubernetes": {
 						Type: "object",
 						Properties: map[string]apiextv1.JSONSchemaProps{
@@ -1146,6 +1160,9 @@ var OperatorConfigCRDResourceValidation = apiextv1.CustomResourceValidation{
 								Type: "integer",
 							},
 							"spilo_privileged": {
+								Type: "boolean",
+							},
+							"spilo_allow_privilege_escalation": {
 								Type: "boolean",
 							},
 							"storage_resize_mode": {
@@ -1360,6 +1377,9 @@ var OperatorConfigCRDResourceValidation = apiextv1.CustomResourceValidation{
 							"enable_postgres_team_crd_superusers": {
 								Type: "boolean",
 							},
+							"enable_team_member_deprecation": {
+								Type: "boolean",
+							},
 							"enable_team_superuser": {
 								Type: "boolean",
 							},
@@ -1387,6 +1407,9 @@ var OperatorConfigCRDResourceValidation = apiextv1.CustomResourceValidation{
 										Type: "string",
 									},
 								},
+							},
+							"role_deletion_suffix": {
+								Type: "string",
 							},
 							"team_admin_role": {
 								Type: "string",

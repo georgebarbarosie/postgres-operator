@@ -41,6 +41,13 @@ type PostgresUsersConfiguration struct {
 	ReplicationUsername string `json:"replication_username,omitempty"`
 }
 
+// MajorVersionUpgradeConfiguration defines how to execute major version upgrades of Postgres.
+type MajorVersionUpgradeConfiguration struct {
+	MajorVersionUpgradeMode string `json:"major_version_upgrade_mode" default:"off"` // off - no actions, manual - manifest triggers action, full - manifest and minimal version violation trigger upgrade
+	MinimalMajorVersion     string `json:"minimal_major_version" default:"9.5"`
+	TargetMajorVersion      string `json:"target_major_version" default:"13"`
+}
+
 // KubernetesMetaConfiguration defines k8s conf required for all Postgres clusters and the operator itself
 type KubernetesMetaConfiguration struct {
 	PodServiceAccountName string `json:"pod_service_account_name,omitempty"`
@@ -49,6 +56,7 @@ type KubernetesMetaConfiguration struct {
 	PodServiceAccountRoleBindingDefinition string                       `json:"pod_service_account_role_binding_definition,omitempty"`
 	PodTerminateGracePeriod                Duration                     `json:"pod_terminate_grace_period,omitempty"`
 	SpiloPrivileged                        bool                         `json:"spilo_privileged,omitempty"`
+	SpiloAllowPrivilegeEscalation          *bool                        `json:"spilo_allow_privilege_escalation,omitempty"`
 	SpiloRunAsUser                         *int64                       `json:"spilo_runasuser,omitempty"`
 	SpiloRunAsGroup                        *int64                       `json:"spilo_runasgroup,omitempty"`
 	SpiloFSGroup                           *int64                       `json:"spilo_fsgroup,omitempty"`
@@ -151,6 +159,8 @@ type TeamsAPIConfiguration struct {
 	PostgresSuperuserTeams          []string          `json:"postgres_superuser_teams,omitempty"`
 	EnablePostgresTeamCRD           bool              `json:"enable_postgres_team_crd,omitempty"`
 	EnablePostgresTeamCRDSuperusers bool              `json:"enable_postgres_team_crd_superusers,omitempty"`
+	EnableTeamMemberDeprecation     bool              `json:"enable_team_member_deprecation,omitempty"`
+	RoleDeletionSuffix              string            `json:"role_deletion_suffix,omitempty"`
 }
 
 // LoggingRESTAPIConfiguration defines Logging API conf
@@ -219,6 +229,7 @@ type OperatorConfigurationData struct {
 	SidecarImages              map[string]string                  `json:"sidecar_docker_images,omitempty"` // deprecated in favour of SidecarContainers
 	SidecarContainers          []v1.Container                     `json:"sidecars,omitempty"`
 	PostgresUsersConfiguration PostgresUsersConfiguration         `json:"users"`
+	MajorVersionUpgrade        MajorVersionUpgradeConfiguration   `json:"major_version_upgrade"`
 	Kubernetes                 KubernetesMetaConfiguration        `json:"kubernetes"`
 	PostgresPodResources       PostgresPodResourcesDefaults       `json:"postgres_pod_resources"`
 	Timeouts                   OperatorTimeouts                   `json:"timeouts"`

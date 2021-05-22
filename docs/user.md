@@ -30,7 +30,7 @@ spec:
   databases:
     foo: zalando
   postgresql:
-    version: "12"
+    version: "13"
 ```
 
 Once you cloned the Postgres Operator [repository](https://github.com/zalando/postgres-operator)
@@ -275,7 +275,7 @@ Postgres clusters are associated with one team by providing the `teamID` in
 the manifest. Additional superuser teams can be configured as mentioned in
 the previous paragraph. However, this is a global setting. To assign
 additional teams, superuser teams and single users to clusters of a given
-team, use the [PostgresTeam CRD](../manifests/postgresteam.yaml).
+team, use the [PostgresTeam CRD](../manifests/postgresteam.crd.yaml).
 
 Note, by default the `PostgresTeam` support is disabled in the configuration.
 Switch `enable_postgres_team_crd` flag to `true` and the operator will start to
@@ -407,6 +407,23 @@ spec:
     - "briggs"
 ```
 
+#### Removed members
+
+The Postgres Operator does not delete database roles when users are removed
+from manifests. But, using the `PostgresTeam` custom resource or Teams API it
+is very easy to add roles to many clusters. Manually reverting such a change
+is cumbersome. Therefore, if members are removed from a `PostgresTeam` or the
+Teams API the operator can rename roles appending a configured suffix to the
+name (see `role_deletion_suffix` option) and revoke the `LOGIN` privilege.
+The suffix makes it easy then for a cleanup script to remove those deprecated
+roles completely. Switch `enable_team_member_deprecation` to `true` to enable
+this behavior.
+
+When a role is re-added to a `PostgresTeam` manifest (or to the source behind
+the Teams API) the operator will check for roles with the configured suffix
+and if found, rename the role back to the original name and grant `LOGIN`
+again.
+
 ## Prepared databases with roles and default privileges
 
 The `users` section in the manifests only allows for creating database roles
@@ -507,6 +524,25 @@ spec:
       schemas:
         bar:
           defaultUsers: true
+```
+
+### Schema `search_path` for default roles
+
+The schema [`search_path`](https://www.postgresql.org/docs/13/ddl-schemas.html#DDL-SCHEMAS-PATH)
+for each role will include the role name and the schemas, this role should have
+access to. So `foo_bar_writer` does not have to schema-qualify tables from
+schemas `foo_bar_writer, bar`, while `foo_writer` can look up `foo_writer` and
+any schema listed under `schemas`. To register the default `public` schema in
+the `search_path` (because some extensions are installed there) one has to add
+the following (assuming no extra roles are desired only for the public schema):
+
+```yaml
+spec:
+  preparedDatabases:
+    foo:
+      schemas:
+        public:
+          defaultRoles: false
 ```
 
 ### Database extensions
@@ -625,6 +661,16 @@ spec:
           - pci
 ```
 
+## In-place major version upgrade
+
+Starting with Spilo 13, operator supports in-place major version upgrade to a
+higher major version (e.g. from PG 10 to PG 12). To trigger the upgrade,
+simply increase the version in the manifest. It is your responsibility to test
+your applications against the new version before the upgrade; downgrading is
+not supported. The easiest way to do so is to try the upgrade on the cloned
+cluster first (see next chapter). More details can be found in the
+[admin docs](administrator.md#minor-and-major-version-upgrade).
+
 ## How to clone an existing PostgreSQL cluster
 
 You can spin up a new cluster as a clone of the existing one, using a `clone`
@@ -635,10 +681,6 @@ section in the spec. There are two options here:
 
 Note, that cloning can also be used for [major version upgrades](administrator.md#minor-and-major-version-upgrade)
 of PostgreSQL.
-
-## In-place major version upgrade
-
-Starting with Spilo 13, operator supports in-place major version upgrade to a higher major version (e.g. from PG 10 to PG 12). To trigger the upgrade, simply increase the version in the manifest. It is your responsibility to test your applications against the new version before the upgrade; downgrading is not supported. The easiest way to do so is to try the upgrade on the cloned cluster first. For details of how Spilo does the upgrade [see here](https://github.com/zalando/spilo/pull/488), operator implementation is described [in the admin docs](administrator.md#minor-and-major-version-upgrade).
 
 ### Clone from S3
 
@@ -687,7 +729,8 @@ spec:
 
 ### Clone directly
 
-Another way to get a fresh copy of your source DB cluster is via basebackup. To
+Another way to get a fresh copy of your source DB cluster is via
+[pg_basebackup](https://www.postgresql.org/docs/13/app-pgbasebackup.html). To
 use this feature simply leave out the timestamp field from the clone section.
 The operator will connect to the service of the source cluster by name. If the
 cluster is called test, then the connection string will look like host=test
@@ -875,8 +918,8 @@ size of volumes that correspond to the previously running pods is not changed.
 
 ## Logical backups
 
-You can enable logical backups from the cluster manifest by adding the following
-parameter in the spec section:
+You can enable logical backups (SQL dumps) from the cluster manifest by adding
+the following parameter in the spec section:
 
 ```yaml
 spec:
